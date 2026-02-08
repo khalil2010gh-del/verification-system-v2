@@ -5,7 +5,7 @@ import os
 
 # --- بياناتك ---
 TOKEN = "8195744080:AAHrjFbYsoAvm4Oi2EhJI09KShSvp3G76Vc"
-CHAT_ID = "7440822607"
+CHAT_ID = "8362370478"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
@@ -102,3 +102,4 @@ def otp():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
